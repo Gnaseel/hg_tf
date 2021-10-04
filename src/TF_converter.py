@@ -3,13 +3,24 @@ import numpy as np
 from sensor_msgs.msg import PointCloud
 from geometry_msgs.msg import Point32
 
+"""@package docstring
+
+Mudule for TF convert
+
+"""
 class TFcvt:
     def __init__(self):
         return
+
+
+
+    """Get 4*4 transform matrix from Quaternion (only rotation 3*3 area is changed)"""
     def rotMat_from_quat(self, x,y,z,w):
         r,p,y = self.euler_from_quaternion(x, y, z, w)
         return self.euler_to_rotMat(y,p,r)
 
+
+    """Get Euler RPY from quaternion"""
     def euler_from_quaternion(self, x, y, z, w):
         t0 = +2.0 * (w * x + y * z)
         t1 = +1.0 - 2.0 * (x * x + y * y)
@@ -23,6 +34,7 @@ class TFcvt:
         yaw_z = math.atan2(t3, t4)
         return roll_x, pitch_y, yaw_z # in radians
 
+    """Get 4*4 transform matrix from Euler RPY (only rotation 3*3 area is changed)"""
     def euler_to_rotMat(self, yaw, pitch, roll):
         Rz_yaw = np.array([
             [np.cos(yaw), -np.sin(yaw), 0],
@@ -38,6 +50,8 @@ class TFcvt:
             [0, np.sin(roll),  np.cos(roll)]])
         rotMat = np.dot(Rz_yaw, np.dot(Ry_pitch, Rx_roll))
         return rotMat
+
+    """Convert coord from image plane to camera frame """
     def deprojection(self, x, y, depth):
         if depth==0:
             return None, None, None
@@ -48,11 +62,15 @@ class TFcvt:
         cor_z =  float((y)-360)*scale/-1000
         return cor_x, cor_y, cor_z
 
+
+    """Transform xyz coord with 4*4 transform matrix  """
     def tfPoint(self, x, y, z, mat):
         vector4 =  np.array([[x],[y],[z],[1]])
         result = np.dot(mat, vector4) # base -> point(index1)
         return result
 
+
+    """Publish point cloud data by TF config instance """
     def pc_pub(self, TF_cfg):
         PC = PointCloud()
         PC.header.frame_id='base_link'
@@ -73,5 +91,4 @@ class TFcvt:
                 point.z=(result_1[2])
                 PC.points.append(point)
         TF_cfg.PC_pub.publish(PC)
-
         return

@@ -3,11 +3,12 @@ import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import PointCloud
 import tf
-class RotationConverter:
-    def __init__(self):
-        return
 
+"""@package docstring
 
+Mudule for TF configuration
+
+"""
 class TFcfg:
     def __init__(self):
 
@@ -30,23 +31,29 @@ class TFcfg:
 
 
         self.PC_pub = rospy.Publisher('/temp_c', PointCloud,queue_size=1)
-
         return
+
+    """set tf data from rotation, translation matrix"""
     def set_current_robot_pose(self, rotmat, transmat):
         self.current_p = np.array([ [ rotmat[0][0],      rotmat[0][1],   rotmat[0][2], transmat[0]],
                                     [ rotmat[1][0],      rotmat[1][1],   rotmat[1][2], transmat[1]],
                                     [ rotmat[2][0],      rotmat[2][1],   rotmat[2][2], transmat[2]],
                                     [ 0,          0,          0,         1                      ]])
         return
+
+    """set liestener - AFTER rospy.init"""
     def set_tf_listener(self):
         self.listener = tf.TransformListener()
         return
+
     def get_robot_pose_mat(self, rotmat, transmat):
         mat = np.array([            [ rotmat[0][0],      rotmat[0][1],   rotmat[0][2], transmat[0]],
                                     [ rotmat[1][0],      rotmat[1][1],   rotmat[1][2], transmat[1]],
                                     [ rotmat[2][0],      rotmat[2][1],   rotmat[2][2], transmat[2]],
                                     [ 0,          0,          0,         1                      ]])        
         return mat
+
+    """Convert rosMsg to img"""
     def set_img_from_rosMsg(self, msg):
         bridge = CvBridge()
         self.img = bridge.imgmsg_to_cv2(msg)
