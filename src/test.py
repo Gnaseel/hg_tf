@@ -1,101 +1,48 @@
 #!/usr/bin/env python
 import rospy
 
-import os
-import cv2
 import numpy as np
+
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
 
-img_msg_name="/camera/color/image_raw"
-depth_img_msg_name="/camera/depth/image_rect_raw"
-# img_msg_name="/darknet_ros/detection_image"
-
-width = 640
-height = 480
-indexes = []
-
-def depth_imageCallback(msg):
-    global indexes
-    now_indexes  = indexes[:]
-    print("Depth - CALLBACK")
-
-    bridge = CvBridge()
-    img = bridge.imgmsg_to_cv2(msg)
-
-    img = cv2.resize(img, dsize=(width, height))
-
-    re_img = np.zeros((480, 640), dtype=np.uint8)
-    # img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+import tf
+from TF_converter import TFcvt
+from common import TFcfg
 
 
-    for i,a in enumerate(now_indexes):
-        # print("{} |||| {}, {}VAL------------{} ".format(i, a%width,a//width,img.item(a//width,a%width)))
-        re_img.itemset(a//width, a%width, 200)
+TF_cfg = TFcfg()
+TF_cvt = TFcvt()
 
-    # for y in range(height):
-    #     list = []
-    #     for x in range(width):
-    #         list.append(img.item(y,x)//10)
-            # print(img.item(y,x), end=' ')
-        # print(list)
-    
-    cv2.imshow("depth_img",img*50)   
-    cv2.imshow("depth_re_img",re_img)   
-    cv2.waitKey(1)
+def img2pc_pub(msg):
 
-    os.system('clear')
+    try:
+        (trans, rot) = TF_cfg.listener.lookupTransform( '/base_link','/link_6_t', rospy.Time(0))
+    except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+        return
 
-def imageCallback(msg):
-    global indexes
-    indexes = []
-    print("CALLBACK")
-
-    bridge = CvBridge()
-    img = bridge.imgmsg_to_cv2(msg)
-
-    img = cv2.resize(img, dsize=(width, height))
-    img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
-    # cv2.imshow("raw_img",img)   
+    #------------- GET TF matrix
+    h_e_array = TF_cfg.h_e_array
+    rotmat = TF_cvt.rotMat_from_quat(rot[0], rot[1], rot[2], rot[3])
+    current_p = TF_cfg.get_robot_pose_mat(rotmat, trans)
+    TF_cfg.TF_matrix = np.dot(current_p, h_e_array)
 
 
+    #------------- Cvt rosMsg to img
+    TF_cfg.set_img_from_rosMsg(msg)
 
-    # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    lower_red = np.array([0, 50, 50])
-    upper_red = np.array([25, 255, 255])
-    
-    mask = cv2.inRange(img, lower_red, upper_red)
-    res = cv2.bitwise_and(img,img, mask= mask)
-    cv2.imshow("filtered_image",res)
-
-    idx = 0
-    full =0
-    for y in range(height):
-        for x in range(width):
-            val = res.item(y,x,0)
-            full+=1
-            if val is not 0:
-                idx +=1
-                indexes.append(x + y*width)
-
-    # print(idx)
-    # print(full)
+    #------------- Publish pointcloud
+    TF_cvt.pc_pub(TF_cfg)
+    return
 
 def main():
     rospy.init_node("TF_test")
-    rospy.Subscriber(img_msg_name,Image, imageCallback, queue_size=1)
-    rospy.Subscriber(depth_img_msg_name,Image, depth_imageCallback, queue_size=1)
 
+    TF_cfg.set_tf_listener()
+    rospy.Subscriber(TF_cfg.depth_img_msg_name,Image, img2pc_pub, queue_size=1)
 
-    print("SDFSDF")
-    print("SDFSDF")
-    print("SDFSDF")
-    print("SDFSDF")
     rate = rospy.Rate(30)
     while not rospy.is_shutdown():
-        cv2.waitKey(1)
         rate.sleep()
-
     return
 if __name__=="__main__":
     main()
