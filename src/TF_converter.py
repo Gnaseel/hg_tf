@@ -56,7 +56,8 @@ class TFcvt:
         if depth==0:
             return None, None, None
         cor_x = float(depth)/1000
-        scale = cor_x/1.88
+        scale = cor_x
+        # scale = cor_x/1.88
 
         cor_y = float((x) - 640)*scale/-1000
         cor_z =  float((y)-360)*scale/-1000
